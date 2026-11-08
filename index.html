@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瞬間AI顔診断 総合偏差値</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between p-4 select-none">
+
+    <!-- ヘッダー -->
+    <header class="w-full max-w-md flex justify-center items-center py-4">
+        <h1 id="secret-trigger" onclick="handleSecretClick()" class="text-xl font-bold bg-gradient-to-r from-pink-500 to-indigo-500 bg-clip-text text-transparent cursor-pointer">
+            ✨ 瞬間顔診断 AI
+        </h1>
+    </header>
+
+    <!-- メインコンテンツ（診断画面） -->
+    <main id="user-view" class="w-full max-w-md flex flex-col items-center flex-grow justify-center">
+        <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl text-center relative overflow-hidden">
+            
+            <div class="relative w-full aspect-3/4 bg-black rounded-xl overflow-hidden mb-5 shadow-inner flex items-center justify-center">
+                <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas id="canvas" class="hidden"></canvas>
+                <div id="camera-loading" class="absolute text-slate-400 text-sm animate-pulse">カメラを起動中...</div>
+            </div>
+
+            <button id="diagnose-btn" onclick="startDiagnosis()" disabled class="w-full bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 font-bold py-3.5 px-4 rounded-xl transition shadow-lg opacity-50 cursor-not-allowed">
+                一瞬で診断する！
+            </button>
+
+            <!-- 結果表示エリア -->
+            <div id="result-area" class="hidden mt-5 p-4 bg-slate-800/90 border border-slate-700 rounded-xl text-left animate-fade-in">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="result-title" class="text-xl font-black text-pink-400"></span>
+                    <span class="text-xs bg-indigo-900 text-indigo-200 px-2.5 py-1 rounded-full font-bold">総合偏差値 <span id="res-total" class="text-base text-white"></span></span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 my-3 text-xs">
+                    <div class="bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 flex justify-between">
+                        <span class="text-slate-400">モテ度</span>
+                        <span id="res-mote" class="font-bold text-pink-300"></span>
+                    </div>
+                    <div class="bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 flex justify-between">
+                        <span class="text-slate-400">知性</span>
+                        <span id="res-intel" class="font-bold text-indigo-300"></span>
+                    </div>
+                    <div class="bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 flex justify-between">
+                        <span class="text-slate-400">カリスマ</span>
+                        <span id="res-charisma" class="font-bold text-amber-300"></span>
+                    </div>
+                    <div class="bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 flex justify-between">
+                        <span class="text-slate-400">面白さ</span>
+                        <span id="res-funny" class="font-bold text-emerald-300"></span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 mb-3 text-xs text-slate-300">
+                    <span class="text-indigo-400 font-bold block mb-1">💬 AIアナリストのコメント</span>
+                    <p id="res-ai-comment"></p>
+                </div>
+
+                <!-- 名前入力 -->
+                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 mb-3 flex items-center gap-2">
+                    <span class="text-[11px] text-slate-400 shrink-0">あなたの名前:</span>
+                    <input type="text" id="user-custom-name" placeholder="例: ゲスト（任意）" maxlength="15" class="flex-grow bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-pink-500">
+                    <button onclick="saveUserCustomName()" class="bg-pink-600 hover:bg-pink-500 text-xs font-bold px-3 py-1 rounded transition shrink-0">保存</button>
+                </div>
+
+                <button onclick="generateShareCard()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-2.5 px-4 rounded-lg transition text-xs flex items-center justify-center gap-2 shadow mb-3">
+                    🎨 映えシェアカード画像を生成・保存
+                </button>
+                <canvas id="share-card-canvas" class="hidden"></canvas>
+
+                <button onclick="resetCamera()" class="w-full bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2.5 rounded-lg transition">
+                    もう一度診断する
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 管理者ダッシュボード -->
+    <main id="admin-view" class="w-full max-w-3xl flex flex-col items-center flex-grow justify-start hidden py-4">
+        <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-pink-400">📊 管理者ダッシュボード</h2>
+                    <p class="text-xs text-slate-400">診断データの確認とチャットルーム</p>
+                </div>
+                <button onclick="closeAdmin()" class="bg-slate-800 hover:bg-slate-700 text-sm px-4 py-2 rounded-xl transition">
+                    診断画面に戻る
+                </button>
+            </div>
+
+            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div class="mb-3 text-sm text-slate-300 flex justify-between items-center">
+                    <span>保存データ数: <span id="data-count" class="font-bold text-white">0</span>件</span>
+                    <button onclick="confirmClearLogs()" class="text-xs bg-red-600/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg">一括削除</button>
+                </div>
+                <div class="overflow-x-auto max-h-[35vh] rounded-xl border border-slate-800">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-xs text-slate-400 sticky top-0">
+                                <th class="p-3">日時</th>
+                                <th class="p-3">顔写真</th>
+                                <th class="p-3">名前 / タイプ / 偏差値</th>
+                                <th class="p-3 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table-body" class="divide-y divide-slate-800 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- チャット -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <div class="mb-3 border-b border-slate-800 pb-2 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-indigo-400">💬 管理者専用チャットルーム</h3>
+                    <input type="text" id="admin-name-input" value="管理者1" maxlength="15" class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-indigo-300 w-24">
+                </div>
+                
+                <div id="admin-group-messages" class="h-44 overflow-y-auto space-y-3 mb-3 text-xs pr-2"></div>
+                
+                <div class="flex gap-2 items-center">
+                    <input type="text" id="group-chat-input" placeholder="メッセージを入力..." class="flex-grow bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                    <button onclick="sendGroupChatMessage()" class="bg-indigo-600 hover:bg-indigo-500 text-xs font-bold px-4 py-2 rounded-lg">送信</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- モーダル各種 -->
+    <div id="password-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xs rounded-2xl p-6 shadow-2xl text-center">
+            <h3 class="text-lg font-bold mb-4">管理者認証</h3>
+            <input type="password" id="admin-pass-input" placeholder="パスワード" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-white mb-4 focus:outline-none focus:border-pink-500">
+            <div class="flex gap-2">
+                <button onclick="closeAdminModal()" class="w-1/2 bg-slate-800 py-2.5 rounded-xl text-sm">キャンセル</button>
+                <button onclick="verifyPassword()" class="w-1/2 bg-pink-600 py-2.5 rounded-xl text-sm font-bold">ログイン</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-alert-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xs rounded-2xl p-6 shadow-2xl text-center space-y-4">
+            <h4 id="custom-alert-title" class="text-base font-bold text-pink-400">確認</h4>
+            <p id="custom-alert-message" class="text-xs text-slate-300"></p>
+            <div id="custom-alert-buttons" class="flex gap-2 pt-2"></div>
+        </div>
+    </div>
+
+    <div id="image-zoom-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50" onclick="closeZoomModal()">
+        <div class="relative max-w-sm w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-center shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3">
+                <span id="zoom-title" class="text-xs font-bold text-pink-400"></span>
+                <button onclick="closeZoomModal()" class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-lg">閉じる</button>
+            </div>
+            <img id="zoomed-img" src="" class="w-full aspect-3/4 object-cover rounded-xl border border-slate-700 shadow-lg">
+            <p id="zoom-info" class="text-[11px] text-slate-400 mt-3"></p>
+        </div>
+    </div>
+
+    <script>
+        window.appMemory = {
+            logs: [],
+            chats: []
+        };
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const cameraLoading = document.getElementById('camera-loading');
+        const diagnoseBtn = document.getElementById('diagnose-btn');
+        const resultArea = document.getElementById('result-area');
+        
+        const ADMIN_PASSWORD = "admin123";
+        let titleClickCount = 0;
+        let titleClickTimer = null;
+        let currentResultData = null;
+        let latestLogId = null;
+        let lastCapturedPhotoUrl = null;
+
+        function showCustomAlert(title, message) {
+            const modal = document.getElementById('custom-alert-modal');
+            document.getElementById('custom-alert-title').innerText = title;
+            document.getElementById('custom-alert-message').innerText = message;
+            document.getElementById('custom-alert-buttons').innerHTML = `<button onclick="closeCustomAlert()" class="w-full bg-indigo-600 font-bold py-2.5 rounded-xl text-xs">OK</button>`;
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function showCustomConfirm(title, message, onYes) {
+            const modal = document.getElementById('custom-alert-modal');
+            document.getElementById('custom-alert-title').innerText = title;
+            document.getElementById('custom-alert-message').innerText = message;
+            document.getElementById('custom-alert-buttons').innerHTML = `
+                <button onclick="closeCustomAlert()" class="w-1/2 bg-slate-800 py-2.5 rounded-xl text-xs">キャンセル</button>
+                <button id="conf-yes" class="w-1/2 bg-pink-600 font-bold py-2.5 rounded-xl text-xs">実行</button>
+            `;
+            document.getElementById('conf-yes').onclick = () => { closeCustomAlert(); onYes(); };
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert-modal').classList.add('hidden');
+            document.getElementById('custom-alert-modal').classList.remove('flex');
+        }
+
+        function openZoomModal(url, title, info) {
+            document.getElementById('zoomed-img').src = url;
+            document.getElementById('zoom-title').innerText = title;
+            document.getElementById('zoom-info').innerText = info;
+            document.getElementById('image-zoom-modal').classList.remove('hidden');
+            document.getElementById('image-zoom-modal').classList.add('flex');
+        }
+        function closeZoomModal() {
+            document.getElementById('image-zoom-modal').classList.add('hidden');
+            document.getElementById('image-zoom-modal').classList.remove('flex');
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+                video.srcObject = stream;
+                cameraLoading.style.display = 'none';
+                diagnoseBtn.disabled = false;
+                diagnoseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } catch (err) {
+                cameraLoading.innerText = "カメラの起動に失敗しました";
+            }
+        });
+
+        function handleSecretClick() {
+            titleClickCount++;
+            clearTimeout(titleClickTimer);
+            if (titleClickCount >= 3) {
+                titleClickCount = 0;
+                document.getElementById('password-modal').classList.remove('hidden');
+                document.getElementById('password-modal').classList.add('flex');
+            } else {
+                titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 1000);
+            }
+        }
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') {
+                e.preventDefault();
+                document.getElementById('password-modal').classList.remove('hidden');
+                document.getElementById('password-modal').classList.add('flex');
+            }
+        });
+
+        const types = [
+            { title: "🐱 猫顔タイプ", comments: ["ミステリアスな目元に全人類がひれ伏すレベル。気まぐれに生きる姿が最高です。"] },
+            { title: "🐶 犬顔タイプ", comments: ["忠犬ハチ公もびっくりの愛されオーラ。全方位から可愛がられる才能の持ち主。"] },
+            { title: "🦊 キツネ顔タイプ", comments: ["シャープな輪郭が美しすぎる！知性派スマートオーラがビンビンに漂っています。"] }
+        ];
+
+        function startDiagnosis() {
+            diagnoseBtn.innerText = "AI分析中...";
+            diagnoseBtn.disabled = true;
+
+            canvas.width = 150;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            lastCapturedPhotoUrl = canvas.toDataURL('image/jpeg', 0.4);
+
+            setTimeout(() => {
+                const typeObj = types[Math.floor(Math.random() * types.length)];
+                const mote = 75, intel = 80, charisma = 70, funny = 85;
+                const total = 78;
+                const aiComment = typeObj.comments[0];
+
+                currentResultData = { title: typeObj.title, total, mote, intel, charisma, funny, comment: aiComment, photo: lastCapturedPhotoUrl };
+                latestLogId = 'log_' + Date.now();
+
+                document.getElementById('result-title').innerText = typeObj.title;
+                document.getElementById('res-total').innerText = total;
+                document.getElementById('res-mote').innerText = mote;
+                document.getElementById('res-intel').innerText = intel;
+                document.getElementById('res-charisma').innerText = charisma;
+                document.getElementById('res-funny').innerText = funny;
+                document.getElementById('res-ai-comment').innerText = aiComment;
+                document.getElementById('user-custom-name').value = '';
+
+                diagnoseBtn.classList.add('hidden');
+                resultArea.classList.remove('hidden');
+
+                window.appMemory.logs.unshift({
+                    id: latestLogId,
+                    time: new Date().toLocaleTimeString(),
+                    userName: "名無しさん",
+                    photo: lastCapturedPhotoUrl,
+                    title: typeObj.title,
+                    total: total
+                });
+            }, 1000);
+        }
+
+        function saveUserCustomName() {
+            const nameInput = document.getElementById('user-custom-name').value.trim();
+            if (!latestLogId) return;
+            const finalName = nameInput || "名無しさん";
+
+            const target = window.appMemory.logs.find(l => l.id === latestLogId);
+            if (target) {
+                target.userName = finalName;
+                showCustomAlert("保存", `名前を「${finalName}」に変更しました！`);
+            }
+        }
+
+        function verifyPassword() {
+            if (document.getElementById('admin-pass-input').value === ADMIN_PASSWORD) {
+                closeAdminModal();
+                document.getElementById('user-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                loadAdminDashboard();
+            } else {
+                showCustomAlert("エラー", "パスワードが違います");
+            }
+        }
+        function closeAdminModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('password-modal').classList.remove('flex');
+        }
+        function closeAdmin() {
+            document.getElementById('admin-view').classList.add('hidden');
+            document.getElementById('user-view').classList.remove('hidden');
+        }
+
+        function loadAdminDashboard() {
+            const logs = window.appMemory.logs;
+            document.getElementById('data-count').innerText = logs.length;
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = '';
+
+            if (logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500">まだ診断データがありません（先に診断を行ってください）</td></tr>`;
+            } else {
+                logs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="p-3 text-xs text-slate-400 whitespace-nowrap">${log.time}</td>
+                        <td class="p-3">
+                            <img src="${log.photo}" onclick="openZoomModal('${log.photo}', '${log.userName}', '${log.title}')" class="w-12 h-12 object-cover rounded-xl border border-slate-700 cursor-pointer shadow">
+                        </td>
+                        <td class="p-3">
+                            <span class="font-bold text-white">${log.userName}</span><br>
+                            <span class="text-xs text-pink-400">${log.title}</span><br>
+                            <span class="text-xs font-bold text-indigo-300">偏差値: ${log.total}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteLog('${log.id}')" class="bg-red-600/20 text-red-400 text-xs px-2.5 py-1.5 rounded-lg border border-red-500/30">削除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            loadAdminChat();
+        }
+
+        function deleteLog(id) {
+            window.appMemory.logs = window.appMemory.logs.filter(l => l.id !== id);
+            loadAdminDashboard();
+        }
+
+        function confirmClearLogs() {
+            showCustomConfirm("一括削除", "すべてのデータを削除しますか？", () => {
+                window.appMemory.logs = [];
+                loadAdminDashboard();
+            });
+        }
+
+        function resetCamera() {
+            resultArea.classList.add('hidden');
+            diagnoseBtn.classList.remove('hidden');
+            diagnoseBtn.innerText = "一瞬で診断する！";
+            diagnoseBtn.disabled = false;
+            latestLogId = null;
+        }
+
+        function generateShareCard() {
+            showCustomAlert("保存", "シェアカードが生成されました！");
+        }
+
+        function sendGroupChatMessage() {
+            const input = document.getElementById('group-chat-input');
+            const msg = input.value.trim();
+            const name = document.getElementById('admin-name-input').value.trim() || "管理者1";
+            if(!msg) return;
+
+            window.appMemory.chats.push({ name, message: msg, time: new Date().toLocaleTimeString() });
+            input.value = '';
+            loadAdminChat();
+        }
+
+        function loadAdminChat() {
+            const container = document.getElementById('admin-group-messages');
+            container.innerHTML = '';
+            if(window.appMemory.chats.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-2">メッセージはありません</p>`;
+                return;
+            }
+            window.appMemory.chats.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-900 p-2.5 rounded-xl border border-slate-800";
+                div.innerHTML = `<span class="font-bold text-indigo-300">${c.name}</span> <span class="text-[10px] text-slate-500">${c.time}</span><p class="text-slate-300">${c.message}</p>`;
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
